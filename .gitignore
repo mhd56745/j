@@ -1,0 +1,40 @@
+# Gitignore for IPTV Panel
+
+# Dependencies
+backend/vendor/
+frontend/node_modules/
+
+# Build outputs
+frontend/dist/
+
+# Environment
+.env
+backend/.env
+
+# Storage (keep structure, ignore data)
+storage/app/hls/*
+!storage/app/hls/.gitkeep
+storage/app/recordings/*
+!storage/app/recordings/.gitkeep
+storage/framework/cache/*
+!storage/framework/cache/.gitkeep
+storage/framework/sessions/*
+!storage/framework/sessions/.gitkeep
+storage/framework/views/*
+!storage/framework/views/.gitkeep
+storage/logs/*
+!storage/logs/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+.phpunit.result.cache

@@ -1,0 +1,55 @@
+# Cloud66 Deployment Manifest
+# https://help.cloud66.com/rails/stack-features/manifest-file
+
+environment:
+  FRAMEWORK: laravel
+  PHP_VERSION: "8.3"
+  WEB_SERVER: nginx
+
+components:
+  web:
+    server: nginx
+    php_version: "8.3"
+    build_command: |
+      cd backend
+      composer install --no-dev --optimize-autoloader
+      php artisan config:cache
+      php artisan route:cache
+      php artisan view:cache
+    start_command: |
+      cd backend
+      php artisan serve --host=0.0.0.0 --port=$PORT
+    nginx_config: nginx/sites/default.conf
+
+  worker:
+    start_command: |
+      cd backend
+      php artisan queue:work --daemon --tries=3
+
+  streaming:
+    server: nginx
+    start_command: |
+      nginx -c /app/nginx/nginx.conf -g 'daemon off;'
+    nginx_config: nginx/rtmp.conf
+
+databases:
+  - mysql: "5.7"
+
+env_variables:
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_URL: "${C66_URL}"
+  DB_HOST: "${MYSQL_ADDRESS}"
+  DB_DATABASE: "${MYSQL_DATABASE}"
+  DB_USERNAME: "${MYSQL_USERNAME}"
+  DB_PASSWORD: "${MYSQL_PASSWORD}"
+  CACHE_DRIVER: file
+  SESSION_DRIVER: database
+  QUEUE_CONNECTION: database
+  RTMP_PORT: "1935"
+  HLS_PATH: "/app/storage/app/hls"
+  STREAM_KEY_LENGTH: "16"
+
+after_deploy:
+  - cd backend && php artisan migrate --force
+  - cd backend && php artisan db:seed --force
