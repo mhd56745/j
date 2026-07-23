@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPTV Restream Server - Admin Panel</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09090b;--bg2:#18181b;--bg3:#27272a;--bg4:#3f3f46;
+  --text:#fafafa;--text2:#a1a1aa;--text3:#71717a;
+  --accent:#10b981;--accent2:#059669;--accent-bg:rgba(16,185,129,.1);
+  --red:#ef4444;--red-bg:rgba(239,68,68,.1);
+  --amber:#f59e0b;--amber-bg:rgba(245,158,11,.1);
+  --blue:#3b82f6;--blue-bg:rgba(59,130,246,.1);
+  --radius:8px;--sidebar-w:260px;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --mono:'SF Mono',Monaco,'Cascadia Code',monospace;
+}
+html{font-size:14px}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.5;overflow:hidden;height:100vh}
+a{color:var(--accent);text-decoration:none}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* Layout */
+.app{display:flex;height:100vh}
+.sidebar{width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--bg3);display:flex;flex-direction:column;transition:width .2s;overflow:hidden;flex-shrink:0;z-index:50}
+.sidebar.collapsed{width:60px}
+.sidebar.collapsed .nav-label,.sidebar.collapsed .logo-text,.sidebar.collapsed .sidebar-footer span{display:none}
+.sidebar.collapsed .nav-item{justify-content:center;padding:10px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{height:56px;border-bottom:1px solid var(--bg3);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;background:var(--bg)}
+.content{flex:1;overflow-y:auto;padding:24px}
+
+/* Logo */
+.logo{display:flex;align-items:center;gap:10px;padding:16px;border-bottom:1px solid var(--bg3)}
+.logo-icon{width:34px;height:34px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.logo-text h1{font-size:13px;font-weight:700;white-space:nowrap}
+.logo-text p{font-size:10px;color:var(--text3);white-space:nowrap}
+
+/* Nav */
+.nav{flex:1;padding:12px 8px;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius);color:var(--text2);cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--accent-bg);color:var(--accent)}
+.nav-item svg{width:18px;height:18px;flex-shrink:0}
+.nav-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-footer{padding:12px;border-top:1px solid var(--bg3);display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text3)}
+.sidebar-footer .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Topbar */
+.menu-btn{background:none;border:none;color:var(--text2);cursor:pointer;padding:6px;border-radius:6px;display:flex;align-items:center}
+.menu-btn:hover{background:var(--bg3);color:var(--text)}
+.topbar-title{font-size:16px;font-weight:600;flex:1}
+.badge-live{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--accent);background:var(--accent-bg);padding:4px 10px;border-radius:20px;border:1px solid rgba(16,185,129,.2)}
+.badge-live .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--bg3);border-radius:12px;overflow:hidden}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--bg3);display:flex;align-items:center;justify-content:between;gap:12px}
+.card-title{font-size:13px;font-weight:600;flex:1}
+.card-body{padding:20px}
+.card-body.compact{padding:12px 16px}
+
+/* Stats Grid */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--bg2);border:1px solid var(--bg3);border-radius:12px;padding:20px;display:flex;align-items:flex-start;justify-content:space-between}
+.stat-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:4px}
+.stat-value{font-size:28px;font-weight:700;line-height:1.1}
+.stat-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stat-icon svg{width:20px;height:20px}
+.stat-icon.green{background:var(--accent-bg);color:var(--accent)}
+.stat-icon.blue{background:var(--blue-bg);color:var(--blue)}
+.stat-icon.red{background:var(--red-bg);color:var(--red)}
+.stat-icon.amber{background:var(--amber-bg);color:var(--amber)}
+
+/* Grid layouts */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:1024px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+@media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.stats-grid{grid-template-columns:1fr}}
+
+/* Table */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:10px 16px;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--bg3);white-space:nowrap}
+td{padding:10px 16px;border-bottom:1px solid var(--bg3);font-size:13px;white-space:nowrap}
+tr:hover td{background:var(--bg3)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid transparent}
+.badge.active{background:var(--accent-bg);color:var(--accent);border-color:rgba(16,185,129,.2)}
+.badge.error{background:var(--red-bg);color:var(--red);border-color:rgba(239,68,68,.2)}
+.badge.inactive{background:var(--bg3);color:var(--text3)}
+.badge.outline{background:transparent;border-color:var(--bg4);color:var(--text2)}
+.badge svg{width:12px;height:12px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--bg4);background:var(--bg3);color:var(--text);transition:all .15s;font-family:var(--font)}
+.btn:hover{background:var(--bg4);border-color:var(--text3)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary:hover{background:var(--accent2)}
+.btn.danger{background:var(--red-bg);color:var(--red);border-color:rgba(239,68,68,.3)}
+.btn.danger:hover{background:var(--red);color:#fff}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn.icon{padding:6px;width:32px;height:32px;justify-content:center}
+.btn:disabled{opacity:.5;pointer-events:none}
+.btn svg{width:14px;height:14px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.flex-between{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* Input */
+.input-group{display:flex;flex-direction:column;gap:4px}
+.input-group label{font-size:12px;font-weight:500;color:var(--text2)}
+input[type=text],input[type=password],input[type=number],input[type=url],select,textarea{
+  background:var(--bg);border:1px solid var(--bg3);border-radius:var(--radius);padding:9px 12px;
+  color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border .15s;
+  width:100%;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2371717a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+textarea{resize:vertical;min-height:80px;font-family:var(--mono);font-size:12px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);animation:fadeIn .15s}
+.modal{background:var(--bg2);border:1px solid var(--bg3);border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;animation:slideUp .2s}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--bg3)}
+.modal-header h2{font-size:16px;font-weight:600}
+.modal-header p{font-size:12px;color:var(--text3);margin-top:4px}
+.modal-body{padding:20px 24px;display:flex;flex-direction:column;gap:16px}
+.modal-footer{padding:16px 24px 20px;border-top:1px solid var(--bg3);display:flex;justify-content:flex-end;gap:8px}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Login */
+.login-page{display:flex;align-items:center;justify-content:center;height:100vh;background:var(--bg)}
+.login-box{background:var(--bg2);border:1px solid var(--bg3);border-radius:16px;padding:40px;width:100%;max-width:380px;text-align:center}
+.login-box h1{font-size:20px;margin-bottom:4px}
+.login-box p{color:var(--text3);font-size:13px;margin-bottom:24px}
+.login-box .input-group{text-align:left;margin-bottom:16px}
+.login-box .btn{width:100%;justify-content:center;margin-top:8px}
+
+/* Code block */
+.code-block{background:#0c0c0c;border:1px solid var(--bg3);border-radius:var(--radius);overflow:hidden}
+.code-block .code-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--bg3);background:var(--bg2)}
+.code-block .code-header span{font-size:12px;font-weight:600;color:var(--text2)}
+.code-block pre{padding:16px;overflow:auto;max-height:500px;font-family:var(--mono);font-size:12px;line-height:1.7;color:#4ade80;white-space:pre-wrap;word-break:break-all}
+.code-block pre:empty::after{content:'Loading...';color:var(--text3)}
+
+/* Progress bar */
+.progress-bar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-top:6px}
+.progress-bar .fill{height:100%;border-radius:3px;transition:width .5s ease}
+
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--bg3);margin-bottom:20px}
+.tab{padding:10px 20px;font-size:13px;font-weight:500;color:var(--text3);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .15s;font-family:var(--font)}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* Channel cards */
+.channel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.channel-card{background:var(--bg2);border:1px solid var(--bg3);border-radius:12px;padding:16px;transition:all .2s}
+.channel-card:hover{border-color:var(--bg4);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.channel-card .ch-name{font-size:14px;font-weight:600}
+.channel-card .ch-meta{display:flex;gap:12px;margin-top:8px;font-size:12px;color:var(--text3)}
+.channel-card .ch-actions{display:flex;gap:4px;margin-top:12px;opacity:0;transition:opacity .15s}
+.channel-card:hover .ch-actions{opacity:1}
+
+/* Log entry */
+.log-entry{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid var(--bg3)}
+.log-entry:hover{background:var(--bg3)}
+.log-entry .log-icon{width:16px;height:16px;margin-top:2px;flex-shrink:0}
+.log-entry .log-icon.info{color:var(--accent)}
+.log-entry .log-icon.warning{color:var(--amber)}
+.log-entry .log-icon.error{color:var(--red)}
+.log-entry .log-text{font-size:13px}
+.log-entry .log-time{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* Toast */
+.toast-container{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--bg2);border:1px solid var(--bg3);border-radius:var(--radius);padding:12px 16px;font-size:13px;animation:slideUp .2s;display:flex;align-items:center;gap:8px;min-width:250px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.toast.success{border-left:3px solid var(--accent)}
+.toast.error{border-left:3px solid var(--red)}
+
+/* Empty state */
+.empty{padding:60px 20px;text-align:center;color:var(--text3)}
+.empty svg{width:48px;height:48px;margin:0 auto 12px;opacity:.3}
+.empty p{font-size:14px}
+
+/* Misc */
+.mt-4{margin-top:16px}.mt-6{margin-top:24px}.mb-4{margin-bottom:16px}
+.text-sm{font-size:12px}.text-xs{font-size:11px}
+.text-muted{color:var(--text3)}
+.font-mono{font-family:var(--mono)}
+.flex-1{flex:1}
+.hidden{display:none!important}
+select option{background:var(--bg2);color:var(--text)}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// ============================================================
+// STATE MANAGEMENT
+// ============================================================
+const state = {
+  token: localStorage.getItem('iptv_token') || null,
+  user: null,
+  page: 'dashboard',
+  sidebarCollapsed: false,
+  // Data
+  dashboard: null,
+  streams: [],
+  streamTotal: 0,
+  streamPage: 1,
+  streamFilter: { status: 'all', search: '' },
+  channels: [],
+  categories: [],
+  settings: {},
+  logs: [],
+  nginxConfig: '',
+  m3uPreview: '',
+  // UI
+  modal: null, // { type, data }
+  selectedStreams: new Set(),
+  loading: false,
+};
+
+// ============================================================
+// API LAYER
+// ============================================================
+async function api(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
+
+  const res = await fetch(`/api${path}`, { ...options, headers: { ...headers, ...options.headers } });
+
+  if (res.status === 401 && path !== '/auth/login') {
+    state.token = null;
+    localStorage.removeItem('iptv_token');
+    render();
+    return null;
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Request failed' }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+
+  const ct = res.headers.get('content-type');
+  if (ct && ct.includes('mpegurl')) return await res.text();
+  return await res.json();
+}
+
+// ============================================================
+// TOAST NOTIFICATIONS
+// ============================================================
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+const pages = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
+  { id: 'streams', label: 'Streams', icon: 'radio' },
+  { id: 'channels', label: 'Channels & Categories', icon: 'folder' },
+  { id: 'nginx', label: 'Nginx Config', icon: 'code' },
+  { id: 'm3u', label: 'M3U Playlist', icon: 'download' },
+  { id: 'settings', label: 'Settings', icon: 'settings' },
+  { id: 'logs', label: 'Activity Logs', icon: 'scroll' },
+];
+
+function navigate(page) {
+  state.page = page;
+  loadPageData(page);
+  render();
+}
+
+async function loadPageData(page) {
+  try {
+    if (page === 'dashboard') state.dashboard = await api('/stats');
+    else if (page === 'streams') await loadStreams();
+    else if (page === 'channels') { state.channels = await api('/channels'); state.categories = await api('/categories'); }
+    else if (page === 'nginx') { const d = await api('/nginx-config'); state.nginxConfig = d.config; }
+    else if (page === 'm3u') state.m3uPreview = await api('/m3u');
+    else if (page === 'settings') state.settings = await api('/settings');
+    else if (page === 'logs') state.logs = await api('/logs');
+  } catch (e) {
+    console.error('Failed to load page data:', e);
+  }
+}
+
+async function loadStreams() {
+  const params = new URLSearchParams({ page: state.streamPage, limit: '20', ...state.streamFilter });
+  const d = await api(`/streams?${params}`);
+  if (d) { state.streams = d.streams || []; state.streamTotal = d.total || 0; }
+}
+
+// ============================================================
+// ICONS (inline SVG)
+// ============================================================
+const icons = {
+  grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
+  radio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></svg>',
+  folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
+  code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+  scroll: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4"/><path d="M19 3H9v7h12V5a2 2 0 0 0-2-2Z"/></svg>',
+  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16"/><rect x="6" y="4" width="4" height="16"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
+  refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  zap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  wifi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+};
+
+function icon(name, size = 18) {
+  return `<span style="display:inline-flex;width:${size}px;height:${size}px">${icons[name] || ''}</span>`;
+}
+
+// ============================================================
+// RENDER ENGINE
+// ============================================================
+function render() {
+  const app = document.getElementById('app');
+  if (!state.token) {
+    app.innerHTML = renderLogin();
+    return;
+  }
+  app.innerHTML = `
+    <div class="app">
+      ${renderSidebar()}
+      <div class="main">
+        ${renderTopbar()}
+        <div class="content">
+          ${renderPage()}
+        </div>
+      </div>
+    </div>
+    ${state.modal ? renderModal() : ''}
+  `;
+  bindEvents();
+}
+
+function renderLogin() {
+  return `
+    <div class="login-page">
+      <div class="login-box">
+        <div style="font-size:40px;margin-bottom:16px">📡</div>
+        <h1>IPTV Restream Server</h1>
+        <p>Admin Panel Login</p>
+        <div class="input-group">
+          <label>Username</label>
+          <input type="text" id="login-user" placeholder="admin" value="admin">
+        </div>
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" id="login-pass" placeholder="admin123" value="admin123">
+        </div>
+        <button class="btn primary" id="login-btn">Sign In</button>
+        <p style="margin-top:16px;font-size:11px;color:var(--text3)">Default: admin / admin123</p>
+      </div>
+    </div>`;
+}
+
+function renderSidebar() {
+  const cls = state.sidebarCollapsed ? 'sidebar collapsed' : 'sidebar';
+  return `
+    <aside class="${cls}">
+      <div class="logo">
+        <div class="logo-icon">📡</div>
+        <div class="logo-text">
+          <h1>IPTV Restream</h1>
+          <p>Admin Panel v2.0</p>
+        </div>
+      </div>
+      <nav class="nav">
+        ${pages.map(p => `
+          <button class="nav-item ${state.page === p.id ? 'active' : ''}" data-page="${p.id}">
+            ${icon(p.icon)}
+            <span class="nav-label">${p.label}</span>
+          </button>
+        `).join('')}
+      </nav>
+      <div class="sidebar-footer">
+        <span class="dot"></span>
+        <span>Server Online</span>
+        <span style="margin-left:auto">Koyeb VPS</span>
+      </div>
+    </aside>`;
+}
+
+function renderTopbar() {
+  const title = pages.find(p => p.id === state.page)?.label || '';
+  return `
+    <header class="topbar">
+      <button class="menu-btn" id="toggle-sidebar">${icon('menu')}</button>
+      <span class="topbar-title">${title}</span>
+      <div class="badge-live"><span class="dot"></span> Live</div>
+      <button class="btn sm" id="logout-btn">Logout</button>
+    </header>`;
+}
+
+function renderPage() {
+  switch (state.page) {
+    case 'dashboard': return renderDashboard();
+    case 'streams': return renderStreams();
+    case 'channels': return renderChannels();
+    case 'nginx': return renderNginx();
+    case 'm3u': return renderM3U();
+    case 'settings': return renderSettings();
+    case 'logs': return renderLogs();
+    default: return '<div class="empty"><p>Page not found</p></div>';
+  }
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const d = state.dashboard;
+  if (!d) return '<div class="empty"><p>Loading dashboard...</p></div>';
+
+  const healthRate = d.totalStreams > 0 ? Math.round(((d.totalStreams - d.errorStreams) / d.totalStreams) * 100) : 100;
+
+  return `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div>
+          <div class="stat-label">Total Streams</div>
+          <div class="stat-value">${d.totalStreams}</div>
+        </div>
+        <div class="stat-icon green">${icon('radio')}</div>
+      </div>
+      <div class="stat-card">
+        <div>
+          <div class="stat-label">Active</div>
+          <div class="stat-value" style="color:var(--accent)">${d.activeStreams}</div>
+        </div>
+        <div class="stat-icon blue">${icon('play')}</div>
+      </div>
+      <div class="stat-card">
+        <div>
+          <div class="stat-label">Errors</div>
+          <div class="stat-value" style="color:var(--red)">${d.errorStreams}</div>
+        </div>
+        <div class="stat-icon red">${icon('warn')}</div>
+      </div>
+      <div class="stat-card">
+        <div>
+          <div class="stat-label">Channels</div>
+          <div class="stat-value">${d.totalChannels}</div>
+        </div>
+        <div class="stat-icon amber">${icon('folder')}</div>
+      </div>
+    </div>
+
+    <div class="grid-4 mb-4" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div class="card" style="padding:14px;display:flex;align-items:center;gap:10px">
+        ${icon('zap', 16)}
+        <div><div class="text-xs text-muted">Total Bitrate</div><div style="font-weight:600">${(d.totalBitrateKbps/1000).toFixed(1)} Mbps</div></div>
+      </div>
+      <div class="card" style="padding:14px;display:flex;align-items:center;gap:10px">
+        ${icon('clock', 16)}
+        <div><div class="text-xs text-muted">Avg Response</div><div style="font-weight:600">${d.avgResponseMs}ms</div></div>
+      </div>
+      <div class="card" style="padding:14px;display:flex;align-items:center;gap:10px">
+        ${icon('folder', 16)}
+        <div><div class="text-xs text-muted">Categories</div><div style="font-weight:600">${d.totalCategories}</div></div>
+      </div>
+      <div class="card" style="padding:14px;display:flex;align-items:center;gap:10px">
+        ${icon('check', 16)}
+        <div><div class="text-xs text-muted">Health Rate</div><div style="font-weight:600">${healthRate}%</div></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Stream Status Overview</span>
+          <button class="btn sm icon" onclick="loadPageData('dashboard');render()">${icon('refresh', 14)}</button>
+        </div>
+        <div class="card-body">
+          ${d.streamsByStatus.map(s => {
+            const pct = d.totalStreams > 0 ? Math.round((s.count / d.totalStreams) * 100) : 0;
+            const color = s.status === 'active' ? 'var(--accent)' : s.status === 'error' ? 'var(--red)' : 'var(--text3)';
+            return `
+              <div class="mb-4">
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+                  <span style="font-weight:500;text-transform:capitalize">${s.status}</span>
+                  <span class="text-muted">${s.count} streams (${pct}%)</span>
+                </div>
+                <div class="progress-bar"><div class="fill" style="width:${pct}%;background:${color}"></div></div>
+              </div>`;
+          }).join('')}
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px">
+            <div>
+              <div class="text-xs font-semibold text-muted mb-4">By Type</div>
+              ${d.streamsByType.map(s => `
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+                  <span class="font-mono text-xs">${s.type.toUpperCase()}</span>
+                  <span class="badge outline">${s.count}</span>
+                </div>
+              `).join('')}
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-muted mb-4">By Quality</div>
+              ${d.streamsByQuality.map(s => `
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+                  <span>${s.quality}</span>
+                  <span class="badge outline">${s.count}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">Recent Activity</span></div>
+        <div class="card-body" style="padding:0">
+          ${d.recentLogs.map(l => `
+            <div class="log-entry">
+              <span class="log-icon ${l.level}">${l.level === 'info' ? icon('check', 16) : icon('warn', 16)}</span>
+              <div>
+                <div style="display:flex;gap:6px;align-items:center">
+                  <span class="badge outline">${l.action.replace(/_/g, ' ')}</span>
+                  <span class="badge ${l.level}">${l.level}</span>
+                </div>
+                <div class="log-text" style="margin-top:4px">${l.details}</div>
+                <div class="log-time">${new Date(l.created_at).toLocaleString()}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-4">
+      <div class="card-header"><span class="card-title">Recently Added Streams</span></div>
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Channel</th><th>Type</th><th>Quality</th><th>Status</th><th>Response</th></tr></thead>
+            <tbody>
+              ${(d.recentStreams || []).map(s => `
+                <tr>
+                  <td style="font-weight:500">${s.name}</td>
+                  <td class="text-muted">${s.channel_name || '-'}</td>
+                  <td><span class="badge outline font-mono">${s.stream_type.toUpperCase()}</span></td>
+                  <td>${s.quality}</td>
+                  <td><span class="badge ${s.status}">${s.status === 'active' ? icon('play', 12) : icon('pause', 12)} ${s.status}</span></td>
+                  <td class="font-mono">${s.response_ms ? s.response_ms + 'ms' : '-'}${s.response_ms > 500 ? ' ' + icon('warn', 12) : ''}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// STREAMS PAGE
+// ============================================================
+function renderStreams() {
+  return `
+    <div class="flex-between mb-4">
+      <div style="display:flex;gap:8px;flex:1;align-items:center">
+        <div style="position:relative;flex:1;max-width:300px">
+          ${icon('search', 14)}
+          <input type="text" id="stream-search" placeholder="Search streams..." value="${state.streamFilter.search}" style="padding-left:36px">
+        </div>
+        <select id="stream-status-filter" style="width:140px">
+          <option value="all" ${state.streamFilter.status === 'all' ? 'selected' : ''}>All Status</option>
+          <option value="active" ${state.streamFilter.status === 'active' ? 'selected' : ''}>Active</option>
+          <option value="inactive" ${state.streamFilter.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+          <option value="error" ${state.streamFilter.status === 'error' ? 'selected' : ''}>Error</option>
+        </select>
+        ${state.selectedStreams.size > 0 ? `<button class="btn danger sm" id="bulk-delete">${icon('trash', 14)} Delete ${state.selectedStreams.size}</button>` : ''}
+      </div>
+      <button class="btn primary sm" id="add-stream">${icon('plus', 14)} Add Stream</button>
+    </div>
+
+    <div class="card">
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="select-all-streams" ${state.selectedStreams.size === state.streams.length && state.streams.length > 0 ? 'checked' : ''}></th>
+                <th>Name</th><th>Source URL</th><th>Type</th><th>Quality</th><th>Status</th><th>Response</th><th>Bitrate</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${state.streams.length === 0 ? '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text3)">No streams found</td></tr>' :
+                state.streams.map(s => `
+                <tr style="${state.selectedStreams.has(s.id) ? 'background:rgba(16,185,129,.05)' : ''}">
+                  <td><input type="checkbox" class="stream-check" data-id="${s.id}" ${state.selectedStreams.has(s.id) ? 'checked' : ''}></td>
+                  <td><div style="font-weight:500">${s.name}</div><div class="text-xs text-muted">${s.channel_name || ''}</div></td>
+                  <td><div class="text-xs font-mono text-muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${s.source_url}">${s.source_url}</div></td>
+                  <td><span class="badge outline font-mono">${s.stream_type.toUpperCase()}</span></td>
+                  <td>${s.quality}</td>
+                  <td><span class="badge ${s.status}">${s.status === 'active' ? icon('play', 12) : s.status === 'error' ? icon('warn', 12) : icon('pause', 12)} ${s.status}</span></td>
+                  <td class="font-mono">${s.response_ms ? s.response_ms + 'ms' : '-'}${s.response_ms > 200 ? ' ' + icon('warn', 12) : ''}</td>
+                  <td>${(s.max_bitrate / 1000).toFixed(1)} Mbps</td>
+                  <td>
+                    <div style="display:flex;gap:2px">
+                      <button class="btn icon sm" data-action="toggle-stream" data-id="${s.id}" data-status="${s.status}" title="${s.status === 'active' ? 'Deactivate' : 'Activate'}">${s.status === 'active' ? icon('pause', 14) : icon('play', 14)}</button>
+                      <button class="btn icon sm" data-action="edit-stream" data-id="${s.id}" title="Edit">${icon('edit', 14)}</button>
+                      <button class="btn icon sm" style="color:var(--red)" data-action="delete-stream" data-id="${s.id}" data-name="${s.name}" title="Delete">${icon('trash', 14)}</button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex-between mt-4 text-sm text-muted">
+      <span>${state.streamTotal} total</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn sm" id="prev-page" ${state.streamPage <= 1 ? 'disabled' : ''}>Previous</button>
+        <span>Page ${state.streamPage}</span>
+        <button class="btn sm" id="next-page" ${state.streamPage * 20 >= state.streamTotal ? 'disabled' : ''}>Next</button>
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// CHANNELS PAGE
+// ============================================================
+function renderChannels() {
+  return `
+    <div class="tabs" id="ch-tabs">
+      <button class="tab active" data-tab="channels">Channels (${state.channels.length})</button>
+      <button class="tab" data-tab="categories">Categories (${state.categories.length})</button>
+    </div>
+    <div id="tab-channels">
+      <div class="flex-between mb-4">
+        <span></span>
+        <button class="btn primary sm" id="add-channel">${icon('plus', 14)} Add Channel</button>
+      </div>
+      <div class="channel-grid">
+        ${state.channels.map(c => `
+          <div class="channel-card">
+            <div style="display:flex;justify-content:space-between;align-items:start">
+              <div>
+                <div class="ch-name">${c.name}</div>
+                ${c.category_name ? `<span class="badge outline" style="margin-top:4px">${c.category_name}</span>` : ''}
+                ${c.epg_id ? `<div class="text-xs text-muted" style="margin-top:4px" class="font-mono">EPG: ${c.epg_id}</div>` : ''}
+              </div>
+            </div>
+            <div class="ch-meta">
+              <span>${icon('radio', 12)} ${c.stream_count || 0} streams</span>
+              <span>${c.active_streams || 0} active</span>
+            </div>
+            <div class="ch-actions">
+              <button class="btn sm" data-action="edit-channel" data-id="${c.id}">${icon('edit', 14)} Edit</button>
+              <button class="btn sm danger" data-action="delete-channel" data-id="${c.id}">${icon('trash', 14)}</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div id="tab-categories" class="hidden">
+      <div class="flex-between mb-4">
+        <span></span>
+        <button class="btn primary sm" id="add-category">${icon('plus', 14)} Add Category</button>
+      </div>
+      <div class="channel-grid">
+        ${state.categories.map(c => `
+          <div class="channel-card">
+            <div class="ch-name">${c.name}</div>
+            <div class="ch-meta"><span>${c.channel_count || 0} channels</span></div>
+            <div class="ch-actions">
+              <button class="btn sm" data-action="edit-category" data-id="${c.id}">${icon('edit', 14)} Edit</button>
+              <button class="btn sm danger" data-action="delete-category" data-id="${c.id}">${icon('trash', 14)}</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// NGINX CONFIG PAGE
+// ============================================================
+function renderNginx() {
+  return `
+    <div class="flex-between mb-4">
+      <p class="text-sm text-muted">Optimized nginx config for low-resource VPS on Koyeb. Auto-generated from active streams.</p>
+      <div class="btn-row">
+        <button class="btn sm" id="regen-nginx">${icon('refresh', 14)} Regenerate</button>
+        <button class="btn sm" id="copy-nginx">${icon('copy', 14)} Copy</button>
+        <button class="btn primary sm" id="download-nginx">${icon('download', 14)} Download</button>
+      </div>
+    </div>
+
+    <div class="grid-3 mb-4">
+      <div class="card" style="padding:14px;display:flex;align-items:center;gap:10px">
+        <div style="color:var(--accent)">${icon('zap', 18)}</div>
+        <div><div class="text-xs text-muted">Optimization</div><div style="font-weight:600">Low VPS</div></div>
+      </div>
+      <div class="card" style="padding:14px;display:flex;align-items:center;gap:10px">
+        <div style="color:var(--blue)">${icon('settings', 18)}</div>
+        <div><div class="text-xs text-muted">Workers</div><div style="font-weight:600">auto</div></div>
+      </div>
+      <div class="card" style="padding:14px;display:flex;align-items:center;gap:10px">
+        <div style="color:var(--amber)">${icon('folder', 18)}</div>
+        <div><div class="text-xs text-muted">Cache</div><div style="font-weight:600">256 MB</div></div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span>nginx-iptv.conf</span></div>
+      <pre>${escHtml(state.nginxConfig)}</pre>
+    </div>
+
+    <div class="card mt-4">
+      <div class="card-header"><span class="card-title">Koyeb Deployment Guide</span></div>
+      <div class="card-body text-sm text-muted" style="display:flex;flex-direction:column;gap:8px">
+        <p><strong>1.</strong> Build the Docker image: <code class="font-mono" style="background:var(--bg);padding:2px 6px;border-radius:4px">docker build -t iptv-server .</code></p>
+        <p><strong>2.</strong> Push to registry and deploy on Koyeb</p>
+        <p><strong>3.</strong> Set PORT env to 3000 in Koyeb dashboard</p>
+        <p><strong>4.</strong> For nginx-rtmp, use a custom Dockerfile with <code class="font-mono" style="background:var(--bg);padding:2px 6px;border-radius:4px">nginx-rtmp-module</code></p>
+        <p><strong>5.</strong> Download generated config and place at <code class="font-mono" style="background:var(--bg);padding:2px 6px;border-radius:4px">/etc/nginx/nginx.conf</code></p>
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// M3U PAGE
+// ============================================================
+function renderM3U() {
+  const chCount = (state.m3uPreview.match(/^#EXTINF/gm) || []).length;
+  return `
+    <div class="flex-between mb-4">
+      <p class="text-sm text-muted">Export channel list as M3U playlist. Compatible with VLC, TiviMate, IPTV Smarters, Kodi, etc.</p>
+      <div class="btn-row">
+        <button class="btn sm" id="copy-m3u">${icon('copy', 14)} Copy</button>
+        <button class="btn primary sm" id="download-m3u">${icon('download', 14)} Download M3U</button>
+      </div>
+    </div>
+
+    <div class="grid-3 mb-4">
+      <div class="card" style="padding:14px;display:flex;align-items:center;gap:10px">
+        <div style="color:var(--blue)">${icon('radio', 18)}</div>
+        <div><div class="text-xs text-muted">Playlist URL</div><div class="text-xs font-mono" style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${state.settings.server_url || ''}/api/m3u</div></div>
+      </div>
+      <div class="card" style="padding:14px;display:flex;align-items:center;gap:10px">
+        <div style="color:var(--accent)">${icon('play', 18)}</div>
+        <div><div class="text-xs text-muted">Channels</div><div style="font-weight:600">${chCount} active</div></div>
+      </div>
+      <div class="card" style="padding:14px;display:flex;align-items:center;gap:10px">
+        <div style="color:var(--amber)">${icon('download', 18)}</div>
+        <div><div class="text-xs text-muted">Format</div><div style="font-weight:600">M3U (HLS)</div></div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span>iptv_playlist.m3u</span>
+        <button class="btn sm" id="refresh-m3u">${icon('refresh', 14)} Refresh</button>
+      </div>
+      <pre>${escHtml(state.m3uPreview)}</pre>
+    </div>
+
+    <div class="card mt-4">
+      <div class="card-header"><span class="card-title">Compatible Players</span></div>
+      <div class="card-body" style="display:flex;flex-wrap:wrap;gap:6px">
+        ${['VLC','TiviMate','IPTV Smarters','Kodi','Perfect Player','GSE Smart IPTV','MyIPTV Player','PotPlayer','SimpleTV'].map(p =>
+          `<span class="badge outline">${p}</span>`
+        ).join('')}
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// SETTINGS PAGE
+// ============================================================
+function renderSettings() {
+  const s = state.settings;
+  const groups = [
+    { title: 'Server Configuration', desc: 'Core server settings for VPS deployment', settings: [
+      { key: 'server_ip', label: 'Server IP', ph: 'e.g. 192.168.1.100' },
+      { key: 'server_url', label: 'Server Base URL', ph: 'http://your-app.koyeb.app' },
+    ]},
+    { title: 'Nginx Ports', desc: 'Port configuration for proxy and streaming', settings: [
+      { key: 'nginx_port', label: 'Nginx HTTP Port', ph: '3000' },
+      { key: 'hls_port', label: 'HLS Relay Port', ph: '8081' },
+      { key: 'rtmp_port', label: 'RTMP Port', ph: '1935' },
+    ]},
+    { title: 'Performance Tuning', desc: 'Optimize for low VPS resources', settings: [
+      { key: 'max_connections', label: 'Max Connections', ph: '500' },
+      { key: 'worker_processes', label: 'Worker Processes', ph: 'auto' },
+      { key: 'client_body_size', label: 'Client Body Size', ph: '10m' },
+      { key: 'proxy_buffer_size', label: 'Proxy Buffer Size', ph: '16k' },
+      { key: 'cache_size', label: 'Cache Zone', ph: '256m' },
+      { key: 'cache_max_size', label: 'Max Cache Size', ph: '1g' },
+      { key: 'cache_inactive', label: 'Cache Inactive', ph: '10m' },
+    ]},
+  ];
+
+  return `
+    ${groups.map(g => `
+      <div class="card mb-4">
+        <div class="card-header"><span class="card-title">${g.title}</span></div>
+        <div class="card-body">
+          <div class="form-grid">
+            ${g.settings.map(st => `
+              <div class="input-group">
+                <label>${st.label}</label>
+                <input type="text" data-setting="${st.key}" value="${s[st.key] || ''}" placeholder="${st.ph}">
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `).join('')}
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" id="reset-settings">Reset</button>
+      <button class="btn primary" id="save-settings">${icon('settings', 14)} Save Settings</button>
+    </div>`;
+}
+
+// ============================================================
+// LOGS PAGE
+// ============================================================
+function renderLogs() {
+  return `
+    <div class="flex-between mb-4">
+      <span class="text-sm text-muted">${state.logs.length} log entries</span>
+      <div class="btn-row">
+        <button class="btn sm" id="refresh-logs">${icon('refresh', 14)} Refresh</button>
+        <button class="btn danger sm" id="clear-logs">${icon('trash', 14)} Clear All</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body" style="padding:0;max-height:600px;overflow-y:auto">
+        ${state.logs.length === 0 ? '<div class="empty"><p>No log entries</p></div>' :
+          state.logs.map(l => `
+            <div class="log-entry">
+              <span class="log-icon ${l.level}">${l.level === 'info' ? icon('check', 16) : icon('warn', 16)}</span>
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                  <span class="badge outline">${l.action.replace(/_/g, ' ')}</span>
+                  <span class="badge ${l.level}">${l.level}</span>
+                </div>
+                <div class="log-text" style="margin-top:4px">${l.details}</div>
+                <div class="log-time">${new Date(l.created_at).toLocaleString()}</div>
+              </div>
+            </div>
+          `).join('')}
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// MODAL RENDERER
+// ============================================================
+function renderModal() {
+  const m = state.modal;
+  let title = '', body = '', footer = '';
+
+  if (m.type === 'stream-form') {
+    const s = m.data || {};
+    const isEdit = !!s.id;
+    title = isEdit ? 'Edit Stream' : 'Add New Stream';
+    body = `
+      <div class="input-group"><label>Stream Name *</label><input type="text" id="sf-name" value="${s.name || ''}" placeholder="e.g. ESPN HD"></div>
+      <div class="input-group"><label>Channel *</label><select id="sf-channel">${state.channels.map(c => `<option value="${c.id}" ${c.id === s.channel_id ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
+      <div class="input-group"><label>Source URL *</label><input type="url" id="sf-url" value="${s.source_url || ''}" placeholder="https://example.com/stream.m3u8"></div>
+      <div class="form-grid">
+        <div class="input-group"><label>Stream Type</label><select id="sf-type">
+          ${['hls','rtmp','rtsp','mpegts'].map(t => `<option value="${t}" ${t === (s.stream_type || 'hls') ? 'selected' : ''}>${t.toUpperCase()}</option>`).join('')}
+        </select></div>
+        <div class="input-group"><label>Quality</label><select id="sf-quality">
+          ${['480p','720p','1080p','4k'].map(q => `<option value="${q}" ${q === (s.quality || '1080p') ? 'selected' : ''}>${q}</option>`).join('')}
+        </select></div>
+      </div>
+      <div class="form-grid">
+        <div class="input-group"><label>Max Bitrate (kbps)</label><input type="number" id="sf-bitrate" value="${s.max_bitrate || 5000}"></div>
+        <div class="input-group"><label>Memory Limit (MB)</label><input type="number" id="sf-memo" value="${s.memo_limit || 256}"></div>
+      </div>
+      <div class="input-group"><label>Proxy Path</label><input type="text" id="sf-path" value="${s.proxy_path || ''}" placeholder="/live/channel-name"></div>
+      ${isEdit ? `<div class="input-group"><label>Status</label><select id="sf-status">
+        ${['active','inactive','error'].map(st => `<option value="${st}" ${st === s.status ? 'selected' : ''}>${st}</option>`).join('')}
+      </select></div>` : ''}
+    `;
+    footer = `
+      <button class="btn" onclick="state.modal=null;render()">Cancel</button>
+      <button class="btn primary" id="save-stream">${isEdit ? 'Update' : 'Create'} Stream</button>`;
+  }
+
+  if (m.type === 'channel-form') {
+    const c = m.data || {};
+    const isEdit = !!c.id;
+    title = isEdit ? 'Edit Channel' : 'Add Channel';
+    body = `
+      <div class="input-group"><label>Channel Name *</label><input type="text" id="cf-name" value="${c.name || ''}" placeholder="Channel name"></div>
+      <div class="input-group"><label>EPG ID</label><input type="text" id="cf-epg" value="${c.epg_id || ''}" placeholder="e.g. ESPN1"></div>
+      <div class="input-group"><label>Logo URL</label><input type="url" id="cf-logo" value="${c.logo_url || ''}" placeholder="https://..."></div>
+      <div class="input-group"><label>Category</label><select id="cf-cat">
+        <option value="">None</option>
+        ${state.categories.map(cat => `<option value="${cat.id}" ${cat.id === c.category_id ? 'selected' : ''}>${cat.name}</option>`).join('')}
+      </select></div>`;
+    footer = `
+      <button class="btn" onclick="state.modal=null;render()">Cancel</button>
+      <button class="btn primary" id="save-channel">${isEdit ? 'Update' : 'Create'}</button>`;
+  }
+
+  if (m.type === 'category-form') {
+    const c = m.data || {};
+    const isEdit = !!c.id;
+    title = isEdit ? 'Edit Category' : 'Add Category';
+    body = `
+      <div class="input-group"><label>Category Name *</label><input type="text" id="catf-name" value="${c.name || ''}" placeholder="Category name"></div>
+      <div class="input-group"><label>Logo URL</label><input type="url" id="catf-logo" value="${c.logo_url || ''}" placeholder="https://..."></div>`;
+    footer = `
+      <button class="btn" onclick="state.modal=null;render()">Cancel</button>
+      <button class="btn primary" id="save-category">${isEdit ? 'Update' : 'Create'}</button>`;
+  }
+
+  return `
+    <div class="modal-overlay" onclick="if(event.target===this){state.modal=null;render()}">
+      <div class="modal">
+        <div class="modal-header"><h2>${title}</h2></div>
+        <div class="modal-body">${body}</div>
+        ${footer ? `<div class="modal-footer">${footer}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// EVENT BINDING
+// ============================================================
+function bindEvents() {
+  // Login
+  const loginBtn = document.getElementById('login-btn');
+  if (loginBtn) {
+    loginBtn.onclick = async () => {
+      const u = document.getElementById('login-user').value;
+      const p = document.getElementById('login-pass').value;
+      try {
+        const d = await api('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ username: u, password: p }),
+        });
+        state.token = d.token;
+        state.user = d.user;
+        localStorage.setItem('iptv_token', d.token);
+        navigate('dashboard');
+        toast('Welcome back, ' + d.user.username);
+      } catch (e) { toast(e.message, 'error'); }
+    };
+  }
+
+  // Logout
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.onclick = () => {
+      state.token = null;
+      localStorage.removeItem('iptv_token');
+      render();
+    };
+  }
+
+  // Sidebar toggle
+  const sidebarBtn = document.getElementById('toggle-sidebar');
+  if (sidebarBtn) {
+    sidebarBtn.onclick = () => { state.sidebarCollapsed = !state.sidebarCollapsed; render(); };
+  }
+
+  // Nav items
+  document.querySelectorAll('[data-page]').forEach(el => {
+    el.onclick = () => navigate(el.dataset.page);
+  });
+
+  // ---- Streams Page Events ----
+  const addStream = document.getElementById('add-stream');
+  if (addStream) addStream.onclick = () => { state.modal = { type: 'stream-form', data: {} }; render(); };
+
+  const streamSearch = document.getElementById('stream-search');
+  if (streamSearch) {
+    let timeout;
+    streamSearch.oninput = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => { state.streamFilter.search = streamSearch.value; state.streamPage = 1; loadStreams().then(render); }, 300);
+    };
+  }
+
+  const statusFilter = document.getElementById('stream-status-filter');
+  if (statusFilter) {
+    statusFilter.onchange = () => {
+      state.streamFilter.status = statusFilter.value;
+      state.streamPage = 1;
+      loadStreams().then(render);
+    };
+  }
+
+  const selectAll = document.getElementById('select-all-streams');
+  if (selectAll) {
+    selectAll.onchange = () => {
+      if (selectAll.checked) state.streams.forEach(s => state.selectedStreams.add(s.id));
+      else state.selectedStreams.clear();
+      render();
+    };
+  }
+
+  document.querySelectorAll('.stream-check').forEach(el => {
+    el.onchange = () => {
+      if (el.checked) state.selectedStreams.add(el.dataset.id);
+      else state.selectedStreams.delete(el.dataset.id);
+      render();
+    };
+  });
+
+  const bulkDel = document.getElementById('bulk-delete');
+  if (bulkDel) {
+    bulkDel.onclick = async () => {
+      if (!confirm(`Delete ${state.selectedStreams.size} streams?`)) return;
+      await api(`/streams?ids=${[...state.selectedStreams].join(',')}`, { method: 'DELETE' });
+      toast(`${state.selectedStreams.size} streams deleted`);
+      state.selectedStreams.clear();
+      loadStreams().then(render);
+    };
+  }
+
+  const prevPage = document.getElementById('prev-page');
+  if (prevPage && !prevPage.disabled) prevPage.onclick = () => { state.streamPage--; loadStreams().then(render); };
+  const nextPage = document.getElementById('next-page');
+  if (nextPage && !nextPage.disabled) nextPage.onclick = () => { state.streamPage++; loadStreams().then(render); };
+
+  // Stream actions (delegated)
+  document.querySelectorAll('[data-action="toggle-stream"]').forEach(el => {
+    el.onclick = async () => {
+      const newStatus = el.dataset.status === 'active' ? 'inactive' : 'active';
+      await api(`/streams/${el.dataset.id}`, { method: 'PUT', body: JSON.stringify({ status: newStatus }) });
+      toast(`Stream ${newStatus}`);
+      loadStreams().then(render);
+    };
+  });
+
+  document.querySelectorAll('[data-action="edit-stream"]').forEach(el => {
+    el.onclick = async () => {
+      const s = await api(`/streams/${el.dataset.id}`);
+      if (s) { state.modal = { type: 'stream-form', data: s }; render(); }
+    };
+  });
+
+  document.querySelectorAll('[data-action="delete-stream"]').forEach(el => {
+    el.onclick = async () => {
+      if (!confirm(`Delete "${el.dataset.name}"?`)) return;
+      await api(`/streams/${el.dataset.id}`, { method: 'DELETE' });
+      toast(`"${el.dataset.name}" deleted`);
+      loadStreams().then(render);
+    };
+  });
+
+  // Save stream
+  const saveStream = document.getElementById('save-stream');
+  if (saveStream) {
+    saveStream.onclick = async () => {
+      const data = state.modal.data;
+      const payload = {
+        name: document.getElementById('sf-name').value,
+        channelId: document.getElementById('sf-channel').value,
+        sourceUrl: document.getElementById('sf-url').value,
+        streamType: document.getElementById('sf-type').value,
+        quality: document.getElementById('sf-quality').value,
+        maxBitrate: parseInt(document.getElementById('sf-bitrate').value) || 5000,
+        memoLimit: parseInt(document.getElementById('sf-memo').value) || 256,
+        proxyPath: document.getElementById('sf-path').value,
+      };
+      if (data.id) payload.status = document.getElementById('sf-status')?.value;
+      if (!payload.name || !payload.channelId || !payload.sourceUrl) { toast('Name, channel, and URL required', 'error'); return; }
+
+      try {
+        if (data.id) await api(`/streams/${data.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        else await api('/streams', { method: 'POST', body: JSON.stringify(payload) });
+        state.modal = null;
+        toast(data.id ? 'Stream updated' : 'Stream created');
+        loadStreams().then(render);
+      } catch (e) { toast(e.message, 'error'); }
+    };
+  }
+
+  // ---- Channels Page Events ----
+  document.querySelectorAll('#ch-tabs .tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('#ch-tabs .tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-channels').classList.toggle('hidden', tab.dataset.tab !== 'channels');
+      document.getElementById('tab-categories').classList.toggle('hidden', tab.dataset.tab !== 'categories');
+    };
+  });
+
+  const addChannel = document.getElementById('add-channel');
+  if (addChannel) addChannel.onclick = () => { state.modal = { type: 'channel-form', data: {} }; render(); };
+
+  const addCategory = document.getElementById('add-category');
+  if (addCategory) addCategory.onclick = () => { state.modal = { type: 'category-form', data: {} }; render(); };
+
+  document.querySelectorAll('[data-action="edit-channel"]').forEach(el => {
+    el.onclick = () => {
+      const ch = state.channels.find(c => c.id === el.dataset.id);
+      if (ch) { state.modal = { type: 'channel-form', data: ch }; render(); }
+    };
+  });
+
+  document.querySelectorAll('[data-action="delete-channel"]').forEach(el => {
+    el.onclick = async () => {
+      if (!confirm('Delete this channel and all its streams?')) return;
+      await api(`/channels/${el.dataset.id}`, { method: 'DELETE' });
+      toast('Channel deleted');
+      loadPageData('channels').then(render);
+    };
+  });
+
+  document.querySelectorAll('[data-action="edit-category"]').forEach(el => {
+    el.onclick = () => {
+      const cat = state.categories.find(c => c.id === el.dataset.id);
+      if (cat) { state.modal = { type: 'category-form', data: cat }; render(); }
+    };
+  });
+
+  document.querySelectorAll('[data-action="delete-category"]').forEach(el => {
+    el.onclick = async () => {
+      if (!confirm('Delete this category?')) return;
+      await api(`/categories/${el.dataset.id}`, { method: 'DELETE' });
+      toast('Category deleted');
+      loadPageData('channels').then(render);
+    };
+  });
+
+  const saveChannel = document.getElementById('save-channel');
+  if (saveChannel) {
+    saveChannel.onclick = async () => {
+      const data = state.modal.data;
+      const payload = {
+        name: document.getElementById('cf-name').value,
+        epgId: document.getElementById('cf-epg').value,
+        logoUrl: document.getElementById('cf-logo').value,
+        categoryId: document.getElementById('cf-cat').value || null,
+      };
+      if (!payload.name) { toast('Name required', 'error'); return; }
+      try {
+        if (data.id) await api(`/channels/${data.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        else await api('/channels', { method: 'POST', body: JSON.stringify(payload) });
+        state.modal = null;
+        toast(data.id ? 'Channel updated' : 'Channel created');
+        loadPageData('channels').then(render);
+      } catch (e) { toast(e.message, 'error'); }
+    };
+  }
+
+  const saveCategory = document.getElementById('save-category');
+  if (saveCategory) {
+    saveCategory.onclick = async () => {
+      const data = state.modal.data;
+      const payload = { name: document.getElementById('catf-name').value, logoUrl: document.getElementById('catf-logo').value };
+      if (!payload.name) { toast('Name required', 'error'); return; }
+      try {
+        if (data.id) await api(`/categories/${data.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        else await api('/categories', { method: 'POST', body: JSON.stringify(payload) });
+        state.modal = null;
+        toast(data.id ? 'Category updated' : 'Category created');
+        loadPageData('channels').then(render);
+      } catch (e) { toast(e.message, 'error'); }
+    };
+  }
+
+  // ---- Nginx Page Events ----
+  const regenNginx = document.getElementById('regen-nginx');
+  if (regenNginx) regenNginx.onclick = async () => { const d = await api('/nginx-config'); state.nginxConfig = d.config; render(); toast('Config regenerated'); };
+
+  const copyNginx = document.getElementById('copy-nginx');
+  if (copyNginx) copyNginx.onclick = () => { navigator.clipboard.writeText(state.nginxConfig); toast('Copied to clipboard'); };
+
+  const dlNginx = document.getElementById('download-nginx');
+  if (dlNginx) dlNginx.onclick = () => downloadFile('nginx-iptv.conf', state.nginxConfig);
+
+  // ---- M3U Page Events ----
+  const copyM3u = document.getElementById('copy-m3u');
+  if (copyM3u) copyM3u.onclick = () => { navigator.clipboard.writeText(state.m3uPreview); toast('Copied to clipboard'); };
+
+  const dlM3u = document.getElementById('download-m3u');
+  if (dlM3u) dlM3u.onclick = () => downloadFile('iptv_playlist.m3u', state.m3uPreview);
+
+  const refreshM3u = document.getElementById('refresh-m3u');
+  if (refreshM3u) refreshM3u.onclick = async () => { state.m3uPreview = await api('/m3u'); render(); };
+
+  // ---- Settings Events ----
+  const saveSettings = document.getElementById('save-settings');
+  if (saveSettings) {
+    saveSettings.onclick = async () => {
+      const data = {};
+      document.querySelectorAll('[data-setting]').forEach(el => { data[el.dataset.setting] = el.value; });
+      await api('/settings', { method: 'POST', body: JSON.stringify(data) });
+      toast('Settings saved');
+      state.settings = { ...state.settings, ...data };
+    };
+  }
+
+  const resetSettings = document.getElementById('reset-settings');
+  if (resetSettings) resetSettings.onclick = () => render();
+
+  // ---- Logs Events ----
+  const refreshLogs = document.getElementById('refresh-logs');
+  if (refreshLogs) refreshLogs.onclick = async () => { state.logs = await api('/logs'); render(); };
+
+  const clearLogs = document.getElementById('clear-logs');
+  if (clearLogs) clearLogs.onclick = async () => {
+    if (!confirm('Clear all logs?')) return;
+    await api('/logs', { method: 'DELETE' });
+    state.logs = [];
+    toast('Logs cleared');
+    render();
+  };
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function downloadFile(filename, content) {
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  toast(`${filename} downloaded`);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+render();
+</script>
+</body>
+</html>
