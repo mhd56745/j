@@ -1,0 +1,36 @@
+# ================================================================
+# IPTV Restreaming Server - Nginx RTMP + Proxy Dockerfile
+# Full deployment with nginx-rtmp-module for actual restreaming
+# ================================================================
+FROM node:18-alpine AS app-builder
+RUN apk add --no-cache python3 make g++
+WORKDIR /app
+COPY package.json ./
+RUN npm install --production && npm cache clean --force
+COPY . .
+RUN node scripts/init-db.js
+RUN mkdir -p /app/data
+
+FROM alpine:3.19
+
+# Install nginx with RTMP module
+RUN apk add --no-cache nginx nginx-mod-rtmp
+
+# Copy app from builder
+COPY --from=app-builder /app /app
+
+# Copy nginx configs
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+COPY nginx/stream.conf.template /etc/nginx/stream.conf.template
+
+# Create required directories
+RUN mkdir -p /tmp/nginx_cache /var/log/nginx /run/nginx /tmp/hls
+
+# Ports
+EXPOSE 3000 8080 1935
+
+# Copy entrypoint
+COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
