@@ -103,13 +103,13 @@ function init() {
     const hash = bcrypt.hashSync('admin123', 10);
     db.prepare('INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)')
       .run('admin-001', 'admin', hash, 'admin');
-    log('system', 'Default admin user created (admin / admin123)', 'info');
+    log('system', 'Default admin user created (admin / )', 'info');
   }
 
   // Seed default settings
   const defaults = {
-    server_ip: 'YOUR_SERVER_IP',
-    server_url: 'http://YOUR_SERVER_IP:3000',
+    server_ip: '',
+    server_url: 'https://friendly-noell-mhdo-5a93d5ca.koyeb.app/',
     nginx_port: '3000',
     hls_port: '8081',
     rtmp_port: '1935',
